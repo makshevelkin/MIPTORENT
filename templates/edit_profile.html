@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Профиль{% endblock %}
+
+{% block content %}
+<div class="auth-layout">
+    <section class="auth-box">
+        <h1>Профиль</h1>
+        <form method="post" class="auth-form">
+            <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+            <label>
+                Имя и фамилия
+                <input type="text" name="full_name" value="{{ current_user.full_name }}" required>
+            </label>
+            <label>
+                Email
+                <input type="email" name="email" value="{{ current_user.email }}" required>
+            </label>
+            <p class="small-note">Роль: {{ current_user.role }}</p>
+            <label>
+                Новый пароль (необязательно)
+                <input type="password" name="new_password" placeholder="Если хотите сменить пароль, заполните поле">
+            </label>
+            <button type="submit" class="btn-primary">Сохранить</button>
+        </form>
+        <p class="small-note">После смены email потребуется повторно подтвердить адрес.</p>
+    </section>
+</div>
+{% endblock %}

@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Профиль{% endblock %}
+
+{% block content %}
+<h1>Профиль</h1>
+
+{% if not current_user.email_confirmed %}
+    <div class="flash flash-error">
+        Email не подтвержден. Мы отправили ссылку на указанный адрес.
+        <form action="{{ request.url_for('resend_confirmation') }}" method="post" style="margin-top:8px;">
+            <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+            <button type="submit" class="btn-primary">Отправить ссылку повторно</button>
+        </form>
+    </div>
+{% endif %}
+
+<div class="profile-layout">
+    <section class="profile-orders">
+        <h2>Ваши заказы</h2>
+        {% if orders %}
+        <div class="table-wrapper">
+            <table class="orders-table">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Предмет</th>
+                    <th>Период</th>
+                    <th>Статус</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for order in orders %}
+                    <tr>
+                        <td>#{{ order.id }}</td>
+                        <td>{{ order.item.name }}</td>
+                        {% if order.start_at or order.end_at %}
+                            <td>{{ order.start_at or order.date_from }} — {{ order.end_at or order.date_to }}</td>
+                        {% else %}
+                            <td>{{ order.date_from }} — {{ order.date_to }}</td>
+                        {% endif %}
+                        <td>{{ order.status }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+            <p>Заказов пока нет.</p>
+        {% endif %}
+        {% if cart_entries %}
+            <h3>В корзине</h3>
+            <div class="table-wrapper">
+                <table class="orders-table">
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Предмет</th>
+                        <th>Период</th>
+                        <th>Статус</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for entry in cart_entries %}
+                        <tr>
+                            <td>{{ entry.id }}</td>
+                            <td>{{ entry.item_name }}</td>
+                            <td>{{ entry.period }}</td>
+                            <td>{{ entry.status }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </section>
+
+    <aside class="profile-side">
+        <div class="profile-card">
+            <h3>Аккаунт</h3>
+            <p><strong>{{ current_user.full_name }}</strong></p>
+            <p>{{ current_user.email }}</p>
+            <p class="small-note">Роль: {{ current_user.role }}</p>
+            <ul class="profile-links">
+                <li><a href="{{ request.url_for('edit_profile') }}">Редактировать профиль</a></li>
+                <li><a href="{{ request.url_for('logout') }}">Выйти</a></li>
+            </ul>
+        </div>
+    </aside>
+</div>
+{% endblock %}

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <title>{% block title %}Сервис аренды{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="{{ request.url_for('static', path='css/style.css') }}">
+</head>
+<body>
+<header class="top-bar">
+    <div class="logo">
+        <a href="{{ request.url_for('index') }}">MIPTORENT</a>
+    </div>
+    <nav class="top-nav">
+        <a href="{{ request.url_for('index') }}">Каталог</a>
+        <a href="{{ request.url_for('cart') }}">Корзина</a>
+        {% if current_user %}
+            {% if current_user.role == "admin" %}
+                <a href="{{ request.url_for('admin_items') }}">Админка</a>
+            {% endif %}
+            <a href="{{ request.url_for('profile') }}">Профиль</a>
+        {% else %}
+            <a href="{{ request.url_for('login') }}">Войти</a>
+            <a href="{{ request.url_for('register') }}">Регистрация</a>
+        {% endif %}
+    </nav>
+</header>
+
+<main class="page-content">
+    {% if messages %}
+        <div class="flash-container">
+            {% for category, msg in messages %}
+                <div class="flash flash-{{ category }}">{{ msg }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% block content %}{% endblock %}
+</main>
+
+<footer class="footer">
+    <div class="footer-inner">
+        <div class="footer-block">
+            <h4>О сервисе</h4>
+            <p>Сдаем вещи для событий, путешествий и работы. Проверяем состояния перед каждой выдачей.</p>
+        </div>
+        <div class="footer-block">
+            <h4>Контакты</h4>
+            <p>info@example.com<br>+7 (900) 000-00-00</p>
+        </div>
+        <div class="footer-block">
+            <h4>Документы</h4>
+            <ul>
+                <li><a href="#">Пользовательское соглашение</a></li>
+                <li><a href="#">Политика конфиденциальности</a></li>
+            </ul>
+        </div>
+    </div>
+</footer>
+</body>
+</html>

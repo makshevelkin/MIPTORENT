@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Каталог — Сервис аренды{% endblock %}
+
+{% block content %}
+<div class="layout-two-columns">
+    <aside class="sidebar">
+        <h3>Категории</h3>
+        <ul class="category-list">
+            <li>
+                <a href="{{ request.url_for('index') }}" class="{{ '' if category_id else 'active' }}">Все</a>
+            </li>
+            {% for c in categories %}
+                <li>
+                    <a href="{{ request.url_for('index') ~ '?category=' ~ c.id }}" class="{{ 'active' if category_id == c.id else '' }}">{{ c.name }}</a>
+                </li>
+            {% endfor %}
+        </ul>
+    </aside>
+
+    <section class="catalog-area">
+        <div class="catalog-header">
+            <h1>Каталог</h1>
+            <form method="get" action="{{ request.url_for('index') }}" class="search-form">
+                <input type="text" name="q" placeholder="Поиск по каталогу (название, описание)" value="{{ q }}">
+                {% if category_id %}
+                    <input type="hidden" name="category" value="{{ category_id }}">
+                {% endif %}
+                <button type="submit">Найти</button>
+            </form>
+        </div>
+
+        {% if items %}
+            <div class="catalog-grid">
+                {% for item in items %}
+                    <article class="catalog-card">
+                        <a href="{{ request.url_for('item_detail', item_id=item.id) }}" class="card-image">
+                            <img src="{{ item.images[0].url if item.images else 'https://placehold.co/600x400?text=Нет+фото' }}" alt="{{ item.name }}">
+                        </a>
+                        <div class="card-body">
+                            <h2 class="card-title">
+                                <a href="{{ request.url_for('item_detail', item_id=item.id) }}">{{ item.name }}</a>
+                            </h2>
+                            <p class="card-text">{{ item.short_description }}</p>
+                            <div class="card-meta">
+                                {% set tier_prices = [item.price_per_hour, item.price_per_3h, item.price_per_day, item.price_per_week] | select('gt', 0) | list %}
+                                {% set min_price = tier_prices|min if tier_prices else 0 %}
+                                <span class="price">
+                                    {% if tier_prices %}от {{ min_price }} ₽{% else %}Цена не указана{% endif %}
+                                </span>
+                                <a href="{{ request.url_for('item_detail', item_id=item.id) }}" class="btn-small">Подробнее</a>
+                            </div>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p>Ничего не найдено. Попробуйте изменить запрос или выбрать другую категорию.</p>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

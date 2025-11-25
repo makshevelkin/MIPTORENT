@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Новый товар' if not item else 'Редактирование товара' }}{% endblock %}
+
+{% block content %}
+<div class="auth-layout">
+    <section class="auth-box" style="max-width: 720px;">
+        <h1>{{ 'Новый товар' if not item else 'Редактирование товара' }}</h1>
+        <form method="post" class="auth-form" enctype="multipart/form-data">
+            <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+            <label>
+                Название
+                <input type="text" name="name" value="{{ item.name if item else '' }}" required>
+            </label>
+            <label>
+                Цена от часа
+                <input type="number" name="price_per_hour" value="{{ item.price_per_hour if item else '' }}" min="0" step="1">
+            </label>
+            <label>
+                Цена от 3 часов
+                <input type="number" name="price_per_3h" value="{{ item.price_per_3h if item else '' }}" min="0" step="1">
+            </label>
+            <label>
+                Цена от дня
+                <input type="number" name="price_per_day" value="{{ item.price_per_day if item else '' }}" min="0" step="1">
+            </label>
+            <label>
+                Цена от недели
+                <input type="number" name="price_per_week" value="{{ item.price_per_week if item else '' }}" min="0" step="1">
+            </label>
+            <label>
+                Категория
+                <select name="category_id" required>
+                    {% for c in categories %}
+                        <option value="{{ c.id }}" {% if item and item.category_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                Короткое описание
+                <textarea name="short_description" rows="2" required>{{ item.short_description if item else '' }}</textarea>
+            </label>
+            <label>
+                Полное описание
+                <textarea name="description" rows="4" required>{{ item.description if item else '' }}</textarea>
+            </label>
+            <label>
+                Изображения (по одному URL на строку)
+                <textarea name="images" rows="4" placeholder="https://..." >{{ images_text if images_text else '' }}</textarea>
+            </label>
+            <label>
+                Загрузить изображения (файлы)
+                <input type="file" name="image_files" multiple>
+            </label>
+            <button type="submit" class="btn-primary">Сохранить</button>
+            <a href="{{ request.url_for('admin_items') }}" class="small-note">Назад к списку</a>
+        </form>
+    </section>
+</div>
+{% endblock %}

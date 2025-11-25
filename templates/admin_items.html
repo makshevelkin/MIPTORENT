@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Товары{% endblock %}
+
+{% block content %}
+<div class="catalog-header">
+    <h1>Товары</h1>
+    <div class="catalog-header-actions">
+        <a class="btn-primary" href="{{ request.url_for('admin_item_new') }}">Добавить</a>
+        <a class="btn-small" href="{{ request.url_for('admin_categories') }}">Категории</a>
+    </div>
+</div>
+
+<div class="table-wrapper">
+    <table class="orders-table">
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Название</th>
+            <th>Категория</th>
+            <th>Цены</th>
+            <th></th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for item in items %}
+            <tr>
+                <td>#{{ item.id }}</td>
+                <td>{{ item.name }}</td>
+                <td>{{ item.category.name if item.category else '' }}</td>
+                {% set tier_prices = [item.price_per_hour, item.price_per_3h, item.price_per_day, item.price_per_week] | select('gt', 0) | list %}
+                {% set min_price = tier_prices|min if tier_prices else 0 %}
+                <td>
+                    {% if tier_prices %}от {{ min_price }} ₽{% else %}—{% endif %}
+                    <div class="small-note">
+                        {% if item.price_per_hour %}час: {{ item.price_per_hour }} ₽{% endif %}
+                        {% if item.price_per_3h %}<br>3 ч: {{ item.price_per_3h }} ₽{% endif %}
+                        {% if item.price_per_day %}<br>день: {{ item.price_per_day }} ₽{% endif %}
+                        {% if item.price_per_week %}<br>неделя: {{ item.price_per_week }} ₽{% endif %}
+                    </div>
+                </td>
+                <td>
+                    <a href="{{ request.url_for('admin_item_edit', item_id=item.id) }}">Редактировать</a>
+                    <form action="{{ request.url_for('admin_item_delete', item_id=item.id) }}" method="post" style="display:inline;" onsubmit="return confirm('Удалить товар?');">
+                        <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                        <button type="submit" class="btn-small">Удалить</button>
+                    </form>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

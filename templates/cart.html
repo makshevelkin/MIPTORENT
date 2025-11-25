@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Корзина{% endblock %}
+
+{% block content %}
+<h1>Корзина</h1>
+
+{% if cart_items %}
+<div class="table-wrapper">
+    <table class="orders-table">
+        <thead>
+        <tr>
+            <th>Предмет</th>
+            <th>Интервал</th>
+            <th>Тариф</th>
+            <th>Сумма</th>
+            <th></th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for row in cart_items %}
+            <tr>
+                <td>{{ row.item.name }}</td>
+                <td>
+                    {% if row.start_at or row.end_at %}
+                        {{ row.start_at or '—' }} — {{ row.end_at or '—' }}
+                    {% else %}
+                        Не выбран
+                    {% endif %}
+                </td>
+                <td>{{ row.tariff or '—' }}</td>
+                <td>{{ row.line_total }} ₽</td>
+                <td>
+                    <form method="post" action="{{ request.url_for('cart_remove', item_id=row.item.id) }}">
+                        <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                        <input type="hidden" name="entry_idx" value="{{ loop.index0 }}">
+                        <button type="submit" class="btn-small">Удалить</button>
+                    </form>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<p><strong>Итого к оплате: {{ total }} ₽</strong></p>
+<form method="post" action="{{ request.url_for('checkout') }}">
+    <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+    <button type="submit" class="btn-primary">Перейти к оплате (заглушка)</button>
+</form>
+<p class="small-note">Сейчас оплата не подключена. При интеграции эквайринга используйте сумму выше.</p>
+{% else %}
+<p>Корзина пуста. Добавьте товары из каталога.</p>
+{% endif %}
+{% endblock %}

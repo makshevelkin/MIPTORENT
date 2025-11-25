@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Регистрация{% endblock %}
+
+{% block content %}
+<div class="auth-layout">
+    <section class="auth-box">
+        <h1>Регистрация</h1>
+        <form method="post" class="auth-form">
+            <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+            <label>
+                Имя и фамилия
+                <input type="text" name="name" required>
+            </label>
+            <label>
+                Email
+                <input type="email" name="email" required>
+            </label>
+            <label>
+                Пароль
+                <input type="password" name="password" required>
+            </label>
+            <button type="submit" class="btn-primary">Создать аккаунт</button>
+        </form>
+        <p class="auth-link">
+            Уже есть аккаунт?
+            <a href="{{ request.url_for('login') }}">Войти</a>
+        </p>
+    </section>
+</div>
+{% endblock %}

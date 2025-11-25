@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Категории{% endblock %}
+
+{% block content %}
+<div class="catalog-header">
+    <h1>Категории</h1>
+    <form method="post" action="{{ request.url_for('admin_category_new') }}" class="search-form" style="max-width:420px;">
+        <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+        <input type="text" name="name" placeholder="Название категории" required>
+        <button type="submit">Добавить</button>
+    </form>
+</div>
+
+<div class="table-wrapper">
+    <table class="orders-table">
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Название</th>
+            <th></th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for c in categories %}
+            <tr>
+                <td>#{{ c.id }}</td>
+                <td>
+                    <form method="post" action="{{ request.url_for('admin_category_edit', category_id=c.id) }}" class="inline-form">
+                        <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                        <input type="text" name="name" value="{{ c.name }}" required>
+                        <button type="submit" class="btn-small">Сохранить</button>
+                    </form>
+                </td>
+                <td>
+                    <form method="post" action="{{ request.url_for('admin_category_delete', category_id=c.id) }}" onsubmit="return confirm('Удалить категорию?');">
+                        <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                        <button type="submit" class="btn-small">Удалить</button>
+                    </form>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+<p class="small-note">Категории с товарами удалять нельзя.</p>
+{% endblock %}

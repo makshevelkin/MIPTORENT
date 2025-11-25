@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block title %}Страница не найдена{% endblock %}
+
+{% block content %}
+<div class="auth-layout">
+    <section class="auth-box">
+        <h1>404</h1>
+        <p>К сожалению, такой страницы нет. Вернитесь на <a href="{{ request.url_for('index') }}">главную</a>.</p>
+    </section>
+</div>
+{% endblock %}

@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}{{ item.name }} — Аренда{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<div class="item-layout">
+    <section class="item-gallery">
+        <div class="item-main-image gallery-main">
+            {% set main_image = item.images[0].url if item.images else 'https://placehold.co/600x400?text=Нет+фото' %}
+            <img id="gallery-main" src="{{ main_image }}" alt="{{ item.name }}">
+            {% if item.images|length > 1 %}
+                <div class="gallery-nav">
+                    <button type="button" class="btn-small" id="prev-img">‹</button>
+                    <button type="button" class="btn-small" id="next-img">›</button>
+                </div>
+            {% endif %}
+        </div>
+        {% if item.images|length > 1 %}
+            <div class="item-thumbs">
+                {% for img in item.images %}
+                    <img src="{{ img.url }}" alt="{{ item.name }}" data-index="{{ loop.index0 }}" class="thumb">
+                {% endfor %}
+            </div>
+        {% endif %}
+        <div class="item-description">
+            <h1>{{ item.name }}</h1>
+            <p>{{ item.description }}</p>
+        </div>
+    </section>
+
+    <aside class="item-sidebar">
+        <div class="item-calendar-block">
+            <h3>Бронирование</h3>
+            <form method="post" action="{{ request.url_for('cart_add', item_id=item.id) }}">
+                <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                <label>
+                    Начало
+                    <input type="text" id="start_at" name="start_at" placeholder="дата и время" required>
+                </label>
+                <label>
+                    Окончание
+                    <input type="text" id="end_at" name="end_at" placeholder="дата и время" required>
+                </label>
+
+                {% if current_user %}
+                    <p class="small-note">Мы подтвердим бронирование на почту: {{ current_user.email }}</p>
+                {% else %}
+                    <p class="small-note">Чтобы забронировать, авторизуйтесь.</p>
+                {% endif %}
+
+                <div class="price-per-day">
+                    {% set tier_prices = [item.price_per_hour, item.price_per_3h, item.price_per_day, item.price_per_week] | select('gt', 0) | list %}
+                    {% set min_price = tier_prices|min if tier_prices else 0 %}
+                    {% if tier_prices %}
+                        от {{ min_price }} ₽
+                        <div class="small-note">
+                            <strong>Тарифы</strong><br>
+                            {% if item.price_per_hour %}от часа: {{ item.price_per_hour }} ₽/час{% endif %}
+                            {% if item.price_per_3h %}<br>от 3 часов: {{ item.price_per_3h }} ₽/час{% endif %}
+                            {% if item.price_per_day %}<br>от дня: {{ item.price_per_day }} ₽/день{% endif %}
+                            {% if item.price_per_week %}<br>от недели: {{ item.price_per_week }} ₽/день{% endif %}
+                        </div>
+                    {% else %}
+                        Цена не указана
+                    {% endif %}
+                </div>
+
+                <input type="hidden" name="qty" value="1">
+                <button type="submit" class="btn-primary">Добавить в корзину</button>
+            </form>
+        </div>
+
+        <div class="item-extra-info">
+            <h4>Условия аренды</h4>
+            <ul>
+                <li>Паспорт или водительское удостоверение.</li>
+                <li>Депозит может потребоваться для дорогостоящих вещей.</li>
+                <li>Возврат в чистом и исправном состоянии.</li>
+            </ul>
+        </div>
+
+        {% if bookings %}
+        <div class="item-extra-info">
+            <h4>Занятые слоты</h4>
+            <ul>
+                {% for b in bookings %}
+                    <li>{{ b.start_at }} — {{ b.end_at }} ({{ b.status }})</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </aside>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+    const now = new Date();
+    const startPicker = flatpickr("#start_at", {
+        enableTime: true,
+        dateFormat: "Y-m-d H:i",
+        minDate: now,
+    });
+    const endPicker = flatpickr("#end_at", {
+        enableTime: true,
+        dateFormat: "Y-m-d H:i",
+        minDate: now,
+    });
+
+    function syncEndMin(startDate) {
+        if (!endPicker) return;
+        endPicker.set("minDate", startDate || now);
+        if (startDate && endPicker.selectedDates[0]) {
+            const endDate = endPicker.selectedDates[0];
+            if (endDate <= startDate) {
+                endPicker.setDate(startDate, true);
+            }
+        }
+    }
+
+    if (startPicker) {
+        startPicker.config.onChange.push((selectedDates) => {
+            syncEndMin(selectedDates[0]);
+        });
+        syncEndMin(startPicker.selectedDates[0]);
+    }
+
+    const thumbs = Array.from(document.querySelectorAll('.item-thumbs .thumb'));
+    const mainImg = document.getElementById('gallery-main');
+    let currentIndex = 0;
+    function show(idx){
+        if(!mainImg || !thumbs.length) return;
+        currentIndex = (idx + thumbs.length) % thumbs.length;
+        mainImg.src = thumbs[currentIndex].src;
+        thumbs.forEach((t,i)=>t.classList.toggle('active', i===currentIndex));
+    }
+    thumbs.forEach((thumb, idx)=>{
+        thumb.addEventListener('click', ()=>show(idx));
+    });
+    const prev = document.getElementById('prev-img');
+    const next = document.getElementById('next-img');
+    if(prev && next){
+        prev.addEventListener('click', ()=>show(currentIndex-1));
+        next.addEventListener('click', ()=>show(currentIndex+1));
+    }
+    if(thumbs.length){ show(0); }
+</script>
+{% endblock %}
