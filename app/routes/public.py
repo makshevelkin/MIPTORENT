@@ -2,7 +2,6 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
-from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -34,18 +33,15 @@ async def index(request: Request, q: str = "", category: str = "", db: Session =
     items_query = db.query(Item)
     if category:
         items_query = items_query.filter(Item.category_id == int(category))
+    items = items_query.all()
     if q_norm:
         words = [w for w in q_norm.split() if w]
-        for w in words:
-            like = f"%{w}%"
-            items_query = items_query.filter(
-                or_(
-                    Item.name.ilike(like),
-                    Item.short_description.ilike(like),
-                    Item.description.ilike(like),
-                )
-            )
-    items = items_query.all()
+        filtered = []
+        for item in items:
+            haystack = " ".join([item.name or "", item.short_description or "", item.description or ""]).lower()
+            if all(w in haystack for w in words):
+                filtered.append(item)
+        items = filtered
     return await render(
         request,
         "index.html",

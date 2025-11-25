@@ -1,0 +1,44 @@
+# Byte-compiled / cache files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Editor / tooling
+.idea/
+.vscode/
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Logs
+*.log
+
+# Temp / backups
+*.tmp
+*.bak
+*.orig
+*~
+*.swp
+*.swo
+*.рус
+
+# Environment / secrets
+.env
+.env.*
+
+# Databases & local state
+*.db
+*.sqlite
+rental.db
+
+# OS junk
+.DS_Store
+Thumbs.db
