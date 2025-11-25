@@ -213,6 +213,35 @@ async def profile(request: Request, db: Session = Depends(get_db)):
     )
 
 
+@router.post("/resend-confirmation")
+async def resend_confirmation(request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request, db)
+    if not user:
+        flash(request, "error", "Нужно авторизоваться.")
+        return RedirectResponse(url=request.url_for("login"), status_code=303)
+
+    form_raw = await request.form()
+    form = parse_form_data(form_raw)
+    if not ensure_csrf(request, form):
+        return RedirectResponse(url=request.url_for("profile"), status_code=303)
+
+    if user.email_confirmed:
+        flash(request, "success", "Email уже подтверждён.")
+        return RedirectResponse(url=request.url_for("profile"), status_code=303)
+
+    if not user.confirmation_token:
+        user.confirmation_token = generate_token()
+        db.commit()
+    link = build_absolute_url(request, "confirm_email", token=user.confirmation_token)
+    sent = send_email("Подтверждение email", user.email, f"Ссылка: {link}\nКод: {user.confirmation_token}")
+    flash(
+        request,
+        "success",
+        "Ссылка повторно отправлена" + ("" if sent else f": {link}"),
+    )
+    return RedirectResponse(url=request.url_for("profile"), status_code=303)
+
+
 @router.api_route("/profile/edit", methods=["GET", "POST"], response_class=HTMLResponse)
 async def edit_profile(request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request, db)
