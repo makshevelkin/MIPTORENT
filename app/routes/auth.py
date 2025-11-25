@@ -6,7 +6,17 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import Item, Order, User
-from ..utils import flash, generate_token, get_cart, get_current_user, parse_form_data, render, send_email_debug, ensure_csrf
+from ..utils import (
+    build_absolute_url,
+    ensure_csrf,
+    flash,
+    generate_token,
+    get_cart,
+    get_current_user,
+    parse_form_data,
+    render,
+    send_email,
+)
 
 router = APIRouter()
 
@@ -26,15 +36,21 @@ async def login(request: Request, db: Session = Depends(get_db)):
         password = form.get("password", "")
         found = db.query(User).filter(User.email == email).first()
         if found and found.check_password(password):
-            request.session["user_id"] = found.id
             if not found.email_confirmed:
-                flash(request, "error", "Вошли. Подтвердите email для полного доступа.")
-            else:
-                flash(request, "success", "Успешный вход.")
+                if not found.confirmation_token:
+                    found.confirmation_token = generate_token()
+                    db.commit()
+                link = build_absolute_url(request, "confirm_email", token=found.confirmation_token)
+                send_email("Подтверждение email", found.email, f"Ссылка: {link}\nКод: {found.confirmation_token}")
+                flash(request, "error", "Подтвердите email перед входом. Ссылка отправлена на почту.")
+                return RedirectResponse(url=request.url_for("login"), status_code=303)
+
+            request.session["user_id"] = found.id
+            flash(request, "success", "Успешный вход.")
             next_url = request.query_params.get("next")
             return RedirectResponse(url=next_url or request.url_for("profile"), status_code=303)
         else:
-            flash(request, "error", "Неверные учетные данные.")
+            flash(request, "error", "Неверные учётные данные.")
 
     return await render(
         request,
@@ -46,7 +62,7 @@ async def login(request: Request, db: Session = Depends(get_db)):
 @router.get("/logout")
 async def logout(request: Request):
     request.session.pop("user_id", None)
-    flash(request, "success", "Вы вышли из аккаунта.")
+    flash(request, "success", "Вы успешно вышли из аккаунта.")
     return RedirectResponse(url=request.url_for("index"), status_code=303)
 
 
@@ -68,16 +84,23 @@ async def register(request: Request, db: Session = Depends(get_db)):
         if not (name and email and password):
             flash(request, "error", "Заполните все поля.")
         elif db.query(User).filter(User.email == email).first():
-            flash(request, "error", "Пользователь с таким email уже есть.")
+            flash(request, "error", "Пользователь с таким email уже существует.")
         else:
             new_user = User(full_name=name, email=email, role="user")
             new_user.set_password(password)
             new_user.confirmation_token = generate_token()
             db.add(new_user)
             db.commit()
-            link = request.url_for("confirm_email", token=new_user.confirmation_token)
-            send_email_debug("Email confirmation", new_user.email, f"Confirm: {link}")
-            flash(request, "success", f"Аккаунт создан. Подтвердите email: {link}")
+            link = build_absolute_url(request, "confirm_email", token=new_user.confirmation_token)
+            sent = send_email(
+                "Подтверждение email",
+                new_user.email,
+                f"Ссылка: {link}\nКод: {new_user.confirmation_token}",
+            )
+            if sent:
+                flash(request, "success", "Регистрация успешна. Проверьте email для подтверждения.")
+            else:
+                flash(request, "success", f"Регистрация успешна. Письмо не отправилось — используйте ссылку: {link}")
             return RedirectResponse(url=request.url_for("login"), status_code=303)
 
     return await render(
@@ -91,12 +114,12 @@ async def register(request: Request, db: Session = Depends(get_db)):
 async def confirm_email(request: Request, token: str, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.confirmation_token == token).first()
     if not user:
-        flash(request, "error", "Ссылка некорректна или устарела.")
+        flash(request, "error", "Ссылка подтверждения неактуальна.")
         return RedirectResponse(url=request.url_for("login"), status_code=303)
     user.email_confirmed = True
     user.confirmation_token = None
     db.commit()
-    flash(request, "success", "Email подтвержден.")
+    flash(request, "success", "Email подтверждён.")
     return RedirectResponse(url=request.url_for("login"), status_code=303)
 
 
@@ -113,11 +136,14 @@ async def forgot_password(request: Request, db: Session = Depends(get_db)):
             user.reset_token = generate_token()
             user.reset_token_expires_at = datetime.utcnow() + timedelta(hours=1)
             db.commit()
-            link = request.url_for("reset_password", token=user.reset_token)
-            send_email_debug("Password reset", user.email, f"Reset: {link}")
-            flash(request, "success", f"Ссылка на сброс: {link}")
+            link = build_absolute_url(request, "reset_password", token=user.reset_token)
+            sent = send_email("Сброс пароля", user.email, f"Ссылка для сброса: {link}")
+            if sent:
+                flash(request, "success", "Ссылка для сброса отправлена на email.")
+            else:
+                flash(request, "success", f"Ссылка для сброса: {link}")
         else:
-            flash(request, "success", "Если email существует, мы отправим ссылку.")
+            flash(request, "success", "Если email существует, мы отправим инструкцию.")
         return RedirectResponse(url=request.url_for("login"), status_code=303)
 
     return await render(
@@ -132,7 +158,7 @@ async def reset_password(request: Request, token: str, db: Session = Depends(get
     user = db.query(User).filter(User.reset_token == token).first()
     now = datetime.utcnow()
     if not user or not user.reset_token_expires_at or user.reset_token_expires_at < now:
-        flash(request, "error", "Ссылка недействительна или устарела.")
+        flash(request, "error", "Ссылка на сброс больше не действует.")
         return RedirectResponse(url=request.url_for("forgot_password"), status_code=303)
 
     if request.method == "POST":
@@ -142,13 +168,13 @@ async def reset_password(request: Request, token: str, db: Session = Depends(get
             return RedirectResponse(url=request.url_for("reset_password", token=token), status_code=303)
         new_password = form.get("password", "")
         if not new_password:
-            flash(request, "error", "Пароль обязателен.")
+            flash(request, "error", "Введите новый пароль.")
         else:
             user.set_password(new_password)
             user.reset_token = None
             user.reset_token_expires_at = None
             db.commit()
-            flash(request, "success", "Пароль обновлен.")
+            flash(request, "success", "Пароль обновлён.")
             return RedirectResponse(url=request.url_for("login"), status_code=303)
 
     return await render(
@@ -177,7 +203,7 @@ async def profile(request: Request, db: Session = Depends(get_db)):
                 "id": f"cart-{idx+1}",
                 "item_name": item.name,
                 "period": f"{entry.get('start_at') or '—'} — {entry.get('end_at') or '—'}",
-                "status": "в корзине",
+                "status": "В корзине",
             }
         )
     return await render(
@@ -206,19 +232,28 @@ async def edit_profile(request: Request, db: Session = Depends(get_db)):
         if not (full_name and email):
             flash(request, "error", "Имя и email обязательны.")
         elif email != user.email and db.query(User).filter(User.email == email).first():
-            flash(request, "error", "Такой email уже используется.")
+            flash(request, "error", "Такой email уже занят.")
         else:
             user.full_name = full_name
             if email != user.email:
                 user.email = email
                 user.email_confirmed = False
                 user.confirmation_token = generate_token()
-                link = request.url_for("confirm_email", token=user.confirmation_token)
-                send_email_debug("Email confirmation", user.email, f"Confirm: {link}")
-                flash(request, "success", f"Email обновлен. Подтвердите через ссылку: {link}")
+                db.commit()
+                link = build_absolute_url(request, "confirm_email", token=user.confirmation_token)
+                sent = send_email(
+                    "Подтверждение email",
+                    user.email,
+                    f"Ссылка: {link}\nКод: {user.confirmation_token}",
+                )
+                flash(
+                    request,
+                    "success",
+                    "Email обновлён. Подтвердите адрес" + ("" if sent else f": {link}"),
+                )
             if new_password:
                 user.set_password(new_password)
-                flash(request, "success", "Пароль обновлен.")
+                flash(request, "success", "Пароль обновлён.")
             db.commit()
             return RedirectResponse(url=request.url_for("profile"), status_code=303)
 

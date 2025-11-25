@@ -1,13 +1,28 @@
 import math
 import secrets
+import smtplib
 from datetime import datetime, timedelta
+from email.message import EmailMessage
 from pathlib import Path
 from typing import List, Optional, Tuple
+from urllib.parse import urljoin, urlsplit
 
 from fastapi import Request, UploadFile
 from fastapi.templating import Jinja2Templates
 
-from .config import ALLOWED_IMAGE_EXT, BASE_DIR, MAX_UPLOAD_SIZE
+from .config import (
+    ALLOWED_IMAGE_EXT,
+    APP_BASE_URL,
+    BASE_DIR,
+    MAX_UPLOAD_SIZE,
+    SMTP_FROM,
+    SMTP_HOST,
+    SMTP_PASSWORD,
+    SMTP_PORT,
+    SMTP_DEBUG,
+    SMTP_SSL,
+    SMTP_USER,
+)
 
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
@@ -112,6 +127,48 @@ def generate_token() -> str:
 
 def send_email_debug(subject: str, recipient: str, body: str) -> None:
     print(f"EMAIL TO {recipient} | {subject}\n{body}\n")
+
+
+def send_email(subject: str, recipient: str, body: str) -> bool:
+    if not recipient:
+        return False
+    if not SMTP_HOST or not SMTP_FROM:
+        send_email_debug(subject, recipient, body)
+        return False
+    try:
+        msg = EmailMessage()
+        msg["Subject"] = subject
+        msg["From"] = SMTP_FROM
+        msg["To"] = recipient
+        msg.set_content(body)
+
+        use_ssl = SMTP_SSL or SMTP_PORT == 465
+        if use_ssl:
+            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT or 465, timeout=10) as server:
+                server.set_debuglevel(1 if SMTP_DEBUG else 0)
+                if SMTP_USER:
+                    server.login(SMTP_USER, SMTP_PASSWORD or "")
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT or 25, timeout=10) as server:
+                server.set_debuglevel(1 if SMTP_DEBUG else 0)
+                if SMTP_USER:
+                    server.starttls()
+                    server.login(SMTP_USER, SMTP_PASSWORD or "")
+                server.send_message(msg)
+        return True
+    except Exception as exc:
+        print(f"EMAIL SEND ERROR: {exc}")
+        send_email_debug(subject, recipient, body)
+        return False
+
+
+def build_absolute_url(request: Request, route_name: str, **params) -> str:
+    raw = str(request.url_for(route_name, **params))
+    if APP_BASE_URL:
+        path = urlsplit(raw).path or "/"
+        return urljoin(APP_BASE_URL.rstrip("/") + "/", path.lstrip("/"))
+    return raw
 
 
 def get_cart(request: Request) -> List[dict]:
