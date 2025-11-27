@@ -1,15 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}Каталог — Сервис аренды{% endblock %}
+{% block title %}Каталог аренды{% endblock %}
 
 {% block content %}
 <div class="layout-two-columns">
     <aside class="sidebar">
         <h3>Категории</h3>
         <ul class="category-list">
-            <li>
-                <a href="{{ request.url_for('index') }}" class="{{ '' if category_id else 'active' }}">Все</a>
-            </li>
+            <li><a href="{{ request.url_for('index') }}" class="{{ '' if category_id else 'active' }}">Все</a></li>
             {% for c in categories %}
                 <li>
                     <a href="{{ request.url_for('index') ~ '?category=' ~ c.id }}" class="{{ 'active' if category_id == c.id else '' }}">{{ c.name }}</a>
@@ -22,11 +20,23 @@
         <div class="catalog-header">
             <h1>Каталог</h1>
             <form method="get" action="{{ request.url_for('index') }}" class="search-form">
-                <input type="text" name="q" placeholder="Поиск по каталогу (название, описание)" value="{{ q }}">
+                <input type="text" name="q" placeholder="Поиск по названию или описанию (камера, перфоратор)" value="{{ q }}">
                 {% if category_id %}
                     <input type="hidden" name="category" value="{{ category_id }}">
                 {% endif %}
                 <button type="submit">Найти</button>
+            </form>
+            <form method="get" action="{{ request.url_for('index') }}" class="category-select">
+                <label for="category-mobile" class="sr-only">Категория</label>
+                <select id="category-mobile" name="category" onchange="this.form.submit()">
+                    <option value="" {% if not category_id %}selected{% endif %}>Все категории</option>
+                    {% for c in categories %}
+                        <option value="{{ c.id }}" {% if category_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+                    {% endfor %}
+                </select>
+                {% if q %}
+                    <input type="hidden" name="q" value="{{ q }}">
+                {% endif %}
             </form>
         </div>
 
@@ -46,7 +56,7 @@
                                 {% set tier_prices = [item.price_per_hour, item.price_per_3h, item.price_per_day, item.price_per_week] | select('gt', 0) | list %}
                                 {% set min_price = tier_prices|min if tier_prices else 0 %}
                                 <span class="price">
-                                    {% if tier_prices %}от {{ min_price }} ₽{% else %}Цена не указана{% endif %}
+                                    {% if tier_prices %}от {{ min_price }} ₽{% else %}цены по запросу{% endif %}
                                 </span>
                                 <a href="{{ request.url_for('item_detail', item_id=item.id) }}" class="btn-small">Подробнее</a>
                             </div>
@@ -55,7 +65,7 @@
                 {% endfor %}
             </div>
         {% else %}
-            <p>Ничего не найдено. Попробуйте изменить запрос или выбрать другую категорию.</p>
+            <p>Ничего не найдено. Попробуйте другой запрос или выберите категорию.</p>
         {% endif %}
     </section>
 </div>
