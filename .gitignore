@@ -39,6 +39,7 @@ htmlcov/
 *.db
 *.sqlite
 rental.db
+static/uploads/
 
 # OS junk
 .DS_Store
