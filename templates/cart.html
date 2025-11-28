@@ -46,7 +46,7 @@
 <p><strong>Итого к оплате: {{ total }} ₽</strong></p>
 <form method="post" action="{{ request.url_for('checkout') }}">
     <input type="hidden" name="_csrf" value="{{ csrf_token }}">
-    <button type="submit" class="btn-primary">Перейти к оплате (заглушка)</button>
+    <button type="submit" class="btn-primary">Перейти к оплате</button>
 </form>
 <p class="small-note">Сейчас оплата не подключена. При интеграции эквайринга используйте сумму выше.</p>
 {% else %}

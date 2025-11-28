@@ -73,6 +73,8 @@ class Order(Base):
     status = Column(String(80), nullable=False, default="в обработке")
     start_at = Column(String(19), nullable=True)
     end_at = Column(String(19), nullable=True)
+    payment_id = Column(String(120), nullable=True)
+    payment_status = Column(String(50), nullable=True)
 
     user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
     item_id = Column(Integer, ForeignKey("item.id"), nullable=False)

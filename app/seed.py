@@ -33,6 +33,10 @@ def ensure_schema(db):
         order_alters.append("ALTER TABLE `order` ADD COLUMN start_at TEXT")
     if "end_at" not in order_columns:
         order_alters.append("ALTER TABLE `order` ADD COLUMN end_at TEXT")
+    if "payment_id" not in order_columns:
+        order_alters.append("ALTER TABLE `order` ADD COLUMN payment_id TEXT")
+    if "payment_status" not in order_columns:
+        order_alters.append("ALTER TABLE `order` ADD COLUMN payment_status TEXT")
     if "status" in order_columns:
         db.execute(text("UPDATE `order` SET status='в обработке' WHERE status='pending'"))
         db.execute(text("UPDATE `order` SET status='подтверждено' WHERE status='confirmed'"))

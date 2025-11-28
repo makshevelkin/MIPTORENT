@@ -6,6 +6,8 @@ from email.message import EmailMessage
 from pathlib import Path
 from typing import List, Optional, Tuple
 from urllib.parse import urljoin, urlsplit
+from sqlalchemy import or_
+from yookassa import Configuration, Payment
 
 from fastapi import Request, UploadFile
 from fastapi.templating import Jinja2Templates
@@ -22,6 +24,9 @@ from .config import (
     SMTP_DEBUG,
     SMTP_SSL,
     SMTP_USER,
+    YOOKASSA_RETURN_URL,
+    YOOKASSA_SECRET_KEY,
+    YOOKASSA_SHOP_ID,
 )
 
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -171,6 +176,51 @@ def build_absolute_url(request: Request, route_name: str, **params) -> str:
     return raw
 
 
+def create_payment_invoice(amount_rub: int, description: str, return_url: str, metadata: dict, customer_email: Optional[str] = None) -> Optional[Tuple[str, str]]:
+    if not (YOOKASSA_SHOP_ID and YOOKASSA_SECRET_KEY):
+        raise ValueError("YOOKASSA_SHOP_ID или YOOKASSA_SECRET_KEY не заданы")
+    if amount_rub <= 0:
+        raise ValueError("Сумма платежа должна быть больше нуля")
+    Configuration.account_id = YOOKASSA_SHOP_ID
+    Configuration.secret_key = YOOKASSA_SECRET_KEY
+    idempotence_key = secrets.token_hex(16)
+    payload = {
+        "amount": {"value": f"{amount_rub:.2f}", "currency": "RUB"},
+        "capture": True,
+        "description": description[:127],
+        "confirmation": {"type": "redirect", "return_url": return_url},
+        "metadata": metadata or {},
+    }
+    if customer_email:
+        payload["receipt"] = {
+            "customer": {"email": customer_email},
+            "items": [
+                {
+                    "description": description[:128],
+                    "quantity": "1.00",
+                    "amount": {"value": f"{amount_rub:.2f}", "currency": "RUB"},
+                    "vat_code": 1,  # без НДС
+                    "payment_subject": "service",
+                    "payment_mode": "full_payment",
+                }
+            ],
+        }
+    payment = Payment.create(payload, idempotence_key)
+    confirmation_url = getattr(getattr(payment, "confirmation", None), "confirmation_url", None)
+    if not confirmation_url:
+        return None
+    return payment.id, confirmation_url
+
+
+def fetch_payment_status(payment_id: str) -> Optional[str]:
+    if not (YOOKASSA_SHOP_ID and YOOKASSA_SECRET_KEY) or not payment_id:
+        return None
+    Configuration.account_id = YOOKASSA_SHOP_ID
+    Configuration.secret_key = YOOKASSA_SECRET_KEY
+    payment = Payment.find_one(payment_id)
+    return getattr(payment, "status", None)
+
+
 def get_cart(request: Request) -> List[dict]:
     data = request.session.get("cart", [])
     if isinstance(data, dict):
@@ -258,7 +308,7 @@ def check_item_availability(item_id: int, start_dt: datetime, end_dt: datetime, 
             Order.item_id == item_id,
             Order.start_at.isnot(None),
             Order.end_at.isnot(None),
-            Order.status.in_(["в обработке", "подтверждено", "оплачено"]),
+            or_(Order.payment_status.is_(None), Order.payment_status != 'canceled'),
         )
         .all()
     )
