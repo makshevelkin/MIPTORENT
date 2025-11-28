@@ -15,6 +15,7 @@ from ..utils import (
     get_current_user,
     parse_form_data,
     render,
+    render_confirmation_email,
     send_email,
 )
 
@@ -41,8 +42,9 @@ async def login(request: Request, db: Session = Depends(get_db)):
                     found.confirmation_token = generate_token()
                     db.commit()
                 link = build_absolute_url(request, "confirm_email", token=found.confirmation_token)
-                send_email("Подтверждение email", found.email, f"Ссылка: {link}\nКод: {found.confirmation_token}")
-                flash(request, "error", "Подтвердите email перед входом. Ссылка отправлена на почту.")
+                subject, html = render_confirmation_email(link)
+                send_email(subject, found.email, f"Ссылка: {link}\nКод: {found.confirmation_token}", html_body=html)
+                flash(request, "error", "Подтвердите email для полного доступа. Ссылка отправлена на почту.")
                 return RedirectResponse(url=request.url_for("login"), status_code=303)
 
             request.session["user_id"] = found.id
@@ -92,15 +94,17 @@ async def register(request: Request, db: Session = Depends(get_db)):
             db.add(new_user)
             db.commit()
             link = build_absolute_url(request, "confirm_email", token=new_user.confirmation_token)
+            subject, html = render_confirmation_email(link)
             sent = send_email(
-                "Подтверждение email",
+                subject,
                 new_user.email,
                 f"Ссылка: {link}\nКод: {new_user.confirmation_token}",
+                html_body=html,
             )
             if sent:
                 flash(request, "success", "Регистрация успешна. Проверьте email для подтверждения.")
             else:
-                flash(request, "success", f"Регистрация успешна. Письмо не отправилось — используйте ссылку: {link}")
+                flash(request, "success", f"Регистрация успешна. Письмо не отправилось, ссылка: {link}")
             return RedirectResponse(url=request.url_for("login"), status_code=303)
 
     return await render(
@@ -233,7 +237,8 @@ async def resend_confirmation(request: Request, db: Session = Depends(get_db)):
         user.confirmation_token = generate_token()
         db.commit()
     link = build_absolute_url(request, "confirm_email", token=user.confirmation_token)
-    sent = send_email("Подтверждение email", user.email, f"Ссылка: {link}\nКод: {user.confirmation_token}")
+    subject, html = render_confirmation_email(link)
+    sent = send_email(subject, user.email, f"Ссылка: {link}\nКод: {user.confirmation_token}", html_body=html)
     flash(
         request,
         "success",
@@ -270,10 +275,12 @@ async def edit_profile(request: Request, db: Session = Depends(get_db)):
                 user.confirmation_token = generate_token()
                 db.commit()
                 link = build_absolute_url(request, "confirm_email", token=user.confirmation_token)
+                subject, html = render_confirmation_email(link)
                 sent = send_email(
-                    "Подтверждение email",
+                    subject,
                     user.email,
                     f"Ссылка: {link}\nКод: {user.confirmation_token}",
+                    html_body=html,
                 )
                 flash(
                     request,

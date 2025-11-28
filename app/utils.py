@@ -3,6 +3,7 @@ import secrets
 import smtplib
 from datetime import datetime, timedelta
 from email.message import EmailMessage
+from email.utils import formataddr
 from pathlib import Path
 from typing import List, Optional, Tuple
 from urllib.parse import urljoin, urlsplit
@@ -134,7 +135,7 @@ def send_email_debug(subject: str, recipient: str, body: str) -> None:
     print(f"EMAIL TO {recipient} | {subject}\n{body}\n")
 
 
-def send_email(subject: str, recipient: str, body: str) -> bool:
+def send_email(subject: str, recipient: str, body: str, html_body: str | None = None, sender_name: str = "MIPTORENT") -> bool:
     if not recipient:
         return False
     if not SMTP_HOST or not SMTP_FROM:
@@ -143,9 +144,11 @@ def send_email(subject: str, recipient: str, body: str) -> bool:
     try:
         msg = EmailMessage()
         msg["Subject"] = subject
-        msg["From"] = SMTP_FROM
+        msg["From"] = formataddr((sender_name, SMTP_FROM))
         msg["To"] = recipient
         msg.set_content(body)
+        if html_body:
+            msg.add_alternative(html_body, subtype="html")
 
         use_ssl = SMTP_SSL or SMTP_PORT == 465
         if use_ssl:
@@ -174,6 +177,25 @@ def build_absolute_url(request: Request, route_name: str, **params) -> str:
         path = urlsplit(raw).path or "/"
         return urljoin(APP_BASE_URL.rstrip("/") + "/", path.lstrip("/"))
     return raw
+
+
+def render_confirmation_email(confirm_url: str) -> tuple[str, str]:
+    subject = "MIPTORENT: подтверждение email"
+    text = (
+        "Подтверждение email на miptorent.ru\n"
+        "Здравствуйте! Чтобы завершить регистрацию, перейдите по ссылке:\n"
+        f"{confirm_url}\n\n"
+        "Если вы не создавали аккаунт — просто игнорируйте это письмо.\n\n"
+        "С уважением,\nКоманда MIPTORENT"
+    )
+    html = f"""
+    <h2>Подтверждение email на miptorent.ru</h2>
+    <p>Здравствуйте! Чтобы завершить регистрацию, перейдите по ссылке:</p>
+    <p><a href="{confirm_url}">Подтвердить email</a></p>
+    <p>Если вы не создавали аккаунт — просто игнорируйте это письмо.</p>
+    <p>С уважением,<br>Команда MIPTORENT</p>
+    """
+    return subject, html if html else text
 
 
 def create_payment_invoice(amount_rub: int, description: str, return_url: str, metadata: dict, customer_email: Optional[str] = None) -> Optional[Tuple[str, str]]:
