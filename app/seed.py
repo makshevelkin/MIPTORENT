@@ -182,7 +182,36 @@ def seed_data(db):
 
 
 def init_db():
+    ensure_permissions()
     Base.metadata.create_all(bind=engine)
     with SessionLocal() as db:
         ensure_schema(db)
         seed_data(db)
+
+
+import os
+
+
+def ensure_permissions():
+    db_path = os.path.join(os.path.dirname(__file__), "../rental.db")
+    try:
+        os.chown(db_path, 33, 33)  # www-data uid=33 gid=33
+    except PermissionError:
+        pass
+
+
+def migrate():
+    from .database import engine
+
+    with engine.connect() as conn:
+        # список миграций
+        migrations = [
+            "ALTER TABLE `order` ADD COLUMN payment_id TEXT",
+            "ALTER TABLE user ADD COLUMN email_verified INTEGER DEFAULT 0",
+        ]
+        for m in migrations:
+            try:
+                conn.execute(text(m))
+            except Exception:
+                # колонка уже существует
+                pass
